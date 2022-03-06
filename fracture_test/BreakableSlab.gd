@@ -16,9 +16,13 @@ class Shard:
 
 var _shards := []
 var _param_shard_location := PackedVector3Array()
+var _param_shard_rotation := PackedVector3Array()
+var _param_shard_rotation_inv_transpose := PackedVector3Array()
 
 func _ready():
 	_param_shard_location.resize(MAX_SHARDS)
+	_param_shard_rotation.resize(3 * MAX_SHARDS)
+	_param_shard_rotation_inv_transpose.resize(3 * MAX_SHARDS)
 
 #	mesh = construct_base_mesh()
 #	mesh = construct_test_mesh()
@@ -37,7 +41,15 @@ func _process(delta):
 		var speed = rng.randf_range(1.5, 2.5)
 		var angle = _time * speed + phase
 		_param_shard_location[i] = Vector3(sin(angle), cos(angle), 0.0)
+		_param_shard_rotation[3 * i + 0] = Vector3(1, 0, 0)
+		_param_shard_rotation[3 * i + 1] = Vector3(0, 1, 0)
+		_param_shard_rotation[3 * i + 2] = Vector3(0, 0, 1)
+		_param_shard_rotation_inv_transpose[3 * i + 0] = Vector3(1, 0, 0)
+		_param_shard_rotation_inv_transpose[3 * i + 1] = Vector3(0, 1, 0)
+		_param_shard_rotation_inv_transpose[3 * i + 2] = Vector3(0, 0, 1)
 	mat.set_shader_param("shard_location", _param_shard_location)
+	mat.set_shader_param("shard_rotation", _param_shard_rotation)
+	mat.set_shader_param("shard_rotation_inv_transpose", _param_shard_rotation_inv_transpose)
 
 
 func create_mesh(arrays: Array) -> ArrayMesh:
