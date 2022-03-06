@@ -29,27 +29,48 @@ func _ready():
 	mesh = construct_prefrac_mesh()
 
 
+func expand_aabb_transform(transform: Transform3D, aabb: AABB):
+	var a := get_aabb().position
+	var b := get_aabb().end
+	aabb.expand(transform * a)
+	aabb.expand(transform * Vector3(b.x, a.y, a.z))
+	aabb.expand(transform * Vector3(a.x, b.y, a.z))
+	aabb.expand(transform * Vector3(b.x, b.y, a.z))
+	aabb.expand(transform * Vector3(a.x, a.y, b.z))
+	aabb.expand(transform * Vector3(b.x, a.y, b.z))
+	aabb.expand(transform * Vector3(a.x, b.y, b.z))
+	aabb.expand(transform * b)
+
 var _time := 0.0
 func _process(delta):
 	_time += delta
 	var mat: ShaderMaterial = mesh.surface_get_material(0)
 	var rng = RandomNumberGenerator.new()
 	rng.seed = 12345
+	var aabb = AABB()
 	for i in min(_shards.size(), MAX_SHARDS):
 		var shard = _shards[i]
 		var phase = rng.randf_range(0, 2*PI)
 		var speed = rng.randf_range(1.5, 2.5)
 		var angle = _time * speed + phase
-		_param_shard_location[i] = Vector3(sin(angle), cos(angle), 0.0)
-		_param_shard_rotation[3 * i + 0] = Vector3(1, 0, 0)
-		_param_shard_rotation[3 * i + 1] = Vector3(0, 1, 0)
-		_param_shard_rotation[3 * i + 2] = Vector3(0, 0, 1)
-		_param_shard_rotation_inv_transpose[3 * i + 0] = Vector3(1, 0, 0)
-		_param_shard_rotation_inv_transpose[3 * i + 1] = Vector3(0, 1, 0)
-		_param_shard_rotation_inv_transpose[3 * i + 2] = Vector3(0, 0, 1)
+		var transform = Transform3D(Basis.IDENTITY, Vector3(sin(angle), cos(angle), 0.0))
+		_param_shard_location[i] = transform.origin
+		_param_shard_rotation[3 * i + 0] = transform.basis.x
+		_param_shard_rotation[3 * i + 1] = transform.basis.y
+		_param_shard_rotation[3 * i + 2] = transform.basis.z
+		var inv_basis = transform.basis.inverse().transposed()
+		_param_shard_rotation_inv_transpose[3 * i + 0] = inv_basis.x
+		_param_shard_rotation_inv_transpose[3 * i + 1] = inv_basis.y
+		_param_shard_rotation_inv_transpose[3 * i + 2] = inv_basis.z
+		
+		var orig_aabb = get_aabb()
+		orig_aabb.
 	mat.set_shader_param("shard_location", _param_shard_location)
 	mat.set_shader_param("shard_rotation", _param_shard_rotation)
 	mat.set_shader_param("shard_rotation_inv_transpose", _param_shard_rotation_inv_transpose)
+	
+	var aabb := AABB()
+	set_custom_aabb(aabb)
 
 
 func create_mesh(arrays: Array) -> ArrayMesh:
