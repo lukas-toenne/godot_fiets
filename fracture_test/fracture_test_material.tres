@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3 uid="uid://dpov5t2rf3iy2"]
+
+[ext_resource type="Shader" path="res://fracture_test/fracture_test_material.gdshader" id="1_jjbwi"]
+[ext_resource type="Texture2D" uid="uid://c43jdvyuqdfrs" path="res://checker1.png" id="1_qhvwr"]
+
+[resource]
+render_priority = 0
+shader = ExtResource( "1_jjbwi" )
+shader_param/shard_location = null
+shader_param/Albedo = ExtResource( "1_qhvwr" )

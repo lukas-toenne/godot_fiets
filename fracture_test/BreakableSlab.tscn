@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://d2folopd8tmxg"]
+
+[ext_resource type="Script" path="res://fracture_test/BreakableSlab.gd" id="1_uujsd"]
+[ext_resource type="PackedScene" uid="uid://cfwmw35ir2omo" path="res://fracture_test/prefractured.glb" id="2_b2ben"]
+
+[node name="BreakableSlab" type="MeshInstance3D"]
+script = ExtResource( "1_uujsd" )
+
+[node name="prefractured" parent="." instance=ExtResource( "2_b2ben" )]
+visible = false

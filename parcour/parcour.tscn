@@ -1,0 +1,52 @@
+[gd_scene load_steps=6 format=3 uid="uid://cjcjlhlk4kkl1"]
+
+[ext_resource type="Texture2D" uid="uid://c43jdvyuqdfrs" path="res://checker1.png" id="1_mob01"]
+[ext_resource type="Script" path="res://player_camera/player_camera.gd" id="2_2ced2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rim75"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l6yqj"]
+albedo_texture = ExtResource( "1_mob01" )
+uv1_scale = Vector3(10, 10, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hle5b"]
+material = SubResource( "StandardMaterial3D_l6yqj" )
+
+[node name="Parcour" type="Node3D"]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(10, 0, 0, 0, 1, 0, 0, 0, 10, 0, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource( "BoxShape3D_rim75" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+mesh = SubResource( "BoxMesh_hle5b" )
+skeleton = NodePath("../..")
+
+[node name="StaticBody3D2" type="StaticBody3D" parent="."]
+transform = Transform3D(-4.37114e-07, 1, 0, -10, -4.37114e-08, 0, 0, 0, 10, -5.1647, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2"]
+shape = SubResource( "BoxShape3D_rim75" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D2"]
+mesh = SubResource( "BoxMesh_hle5b" )
+skeleton = NodePath("../..")
+
+[node name="StaticBody3D3" type="StaticBody3D" parent="."]
+transform = Transform3D(9.01611e-14, -4.37114e-08, -10, -10, -4.37114e-08, 0, -4.37114e-07, 1, -4.37114e-07, -0.106349, -0.5, -4.90573)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D3"]
+shape = SubResource( "BoxShape3D_rim75" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D3"]
+mesh = SubResource( "BoxMesh_hle5b" )
+skeleton = NodePath("../..")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4645, 3.89078)
+script = ExtResource( "2_2ced2" )
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.673619, -0.588371, 0.447278, 0, 0.605183, 0.796086, -0.739079, -0.536259, 0.407663, 5.44491, 4.29117, 3.06741)

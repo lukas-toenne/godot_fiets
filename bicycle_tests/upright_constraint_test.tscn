@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://rymftq6o7du8"]
+
+[ext_resource type="PackedScene" uid="uid://cjcjlhlk4kkl1" path="res://parcour/parcour.tscn" id="1_ms1uj"]
+[ext_resource type="Script" path="res://bicycle_tests/PlayerInputTest.gd" id="2_83yum"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gxfrf"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_plvvy"]
+
+[node name="Node3D" type="Node3D"]
+
+[node name="Parcour" parent="." instance=ExtResource( "1_ms1uj" )]
+
+[node name="RigidDynamicBody3D" type="RigidDynamicBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.57671, 0)
+script = ExtResource( "2_83yum" )
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidDynamicBody3D"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0)
+shape = SubResource( "BoxShape3D_gxfrf" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidDynamicBody3D"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0)
+mesh = SubResource( "BoxMesh_plvvy" )
+
+[node name="Generic6DOFJoint3D" type="Generic6DOFJoint3D" parent="RigidDynamicBody3D"]
+nodes/node_a = NodePath("..")
+linear_limit_x/enabled = false
+angular_limit_x/softness = 0.01
+linear_limit_y/enabled = false
+angular_limit_y/enabled = false
+linear_limit_z/enabled = false
+angular_limit_z/enabled = false
