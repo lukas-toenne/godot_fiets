@@ -1,13 +1,18 @@
 shader_type spatial;
 
-uniform vec3 shard_location[256];
+const int MAX_SHARDS = 256;
 
-uniform sampler2D Albedo;
+uniform vec3 shard_location[MAX_SHARDS];
+uniform sampler2D albedo;
+
+varying flat float shard_index_f;
 
 void vertex() {
-	
+	shard_index_f = CUSTOM0.x;
 }
 
 void fragment() {
-	ALBEDO = texture(Albedo, UV).rgb * shard_location[0].x;
+	int shard_index = int(shard_index_f);
+//	ALBEDO = texture(albedo, UV).rgb * shard_location[shard_index].x;
+	ALBEDO = texture(albedo, UV).rgb * float(shard_index % 2);
 }
