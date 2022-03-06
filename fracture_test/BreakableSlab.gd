@@ -58,7 +58,7 @@ func create_mesh(arrays: Array) -> ArrayMesh:
 		var current_size = _shards.size()
 		_shards.resize(max(current_size, shard_index + 1))
 		for j in range(current_size, _shards.size()):
-			_shards.push_back(Shard.new())
+			_shards[j] = Shard.new()
 	arrays[Mesh.ARRAY_CUSTOM0] = custom0
 
 	var boundary := MeshOps.find_boundary(arrays[Mesh.ARRAY_INDEX])
