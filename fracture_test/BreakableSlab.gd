@@ -17,16 +17,14 @@ class Shard:
 var _shards := []
 var _param_shard_location := PackedVector3Array()
 var _param_shard_rotation := PackedVector3Array()
-var _param_shard_rotation_inv_transpose := PackedVector3Array()
 
 func _ready():
 	_param_shard_location.resize(MAX_SHARDS)
 	_param_shard_rotation.resize(3 * MAX_SHARDS)
-	_param_shard_rotation_inv_transpose.resize(3 * MAX_SHARDS)
 
 #	mesh = construct_base_mesh()
-	mesh = construct_test_mesh()
-#	mesh = construct_prefrac_mesh()
+#	mesh = construct_test_mesh()
+	mesh = construct_prefrac_mesh()
 
 
 func get_shard_aabb(transform: Transform3D) -> AABB:
@@ -60,10 +58,6 @@ func _process(delta):
 		_param_shard_rotation[3 * i + 0] = transform.basis.x
 		_param_shard_rotation[3 * i + 1] = transform.basis.y
 		_param_shard_rotation[3 * i + 2] = transform.basis.z
-		var inv_basis = transform.basis.inverse().transposed()
-		_param_shard_rotation_inv_transpose[3 * i + 0] = inv_basis.x
-		_param_shard_rotation_inv_transpose[3 * i + 1] = inv_basis.y
-		_param_shard_rotation_inv_transpose[3 * i + 2] = inv_basis.z
 		
 		if i == 0:
 			aabb = get_shard_aabb(transform)
@@ -72,7 +66,6 @@ func _process(delta):
 
 	mat.set_shader_param("shard_location", _param_shard_location)
 	mat.set_shader_param("shard_rotation", _param_shard_rotation)
-	mat.set_shader_param("shard_rotation_inv_transpose", _param_shard_rotation_inv_transpose)
 	
 	if aabb:
 		set_custom_aabb(aabb)

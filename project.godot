@@ -8,6 +8,16 @@
 
 config_version=5
 
+_global_script_classes=[{
+"base": "MeshInstance3D",
+"class": &"BreakableSlab",
+"language": &"GDScript",
+"path": "res://fracture_test/BreakableSlab.gd"
+}]
+_global_script_class_icons={
+"BreakableSlab": ""
+}
+
 [application]
 
 config/name="Fiets2"
