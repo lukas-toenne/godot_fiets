@@ -86,7 +86,10 @@ func create_mesh(arrays: Array) -> ArrayMesh:
 	custom0.resize(4 * vertices.size())
 	for i in vertices.size():
 		var shard_index = islands[i]
-		custom0[4 * i] = shard_index
+		custom0[4 * i + 0] = shard_index & 0x000000ff
+		custom0[4 * i + 1] = shard_index & 0x0000ff00
+		custom0[4 * i + 2] = shard_index & 0x00ff0000
+		custom0[4 * i + 3] = shard_index & 0xff000000
 
 		var current_size = _shards.size()
 		_shards.resize(max(current_size, shard_index + 1))
