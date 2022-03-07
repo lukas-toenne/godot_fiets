@@ -71,11 +71,12 @@ func get_shard_aabb(transform: Transform3D) -> AABB:
 
 func _process(delta):
 	# TODO disable update when all shards are sleeping
-	var mat: ShaderMaterial = mesh.surface_get_material(0)
+	var inv_transform = transform.inverse()
 	var aabb = null
 	for i in min(_shards.size(), MAX_SHARDS):
 		var shard = _shards[i]
-		var shard_transform = PhysicsServer3D.body_get_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM)
+		var world_transform = PhysicsServer3D.body_get_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM)
+		var shard_transform = inv_transform * world_transform
 		_param_shard_location[i] = shard_transform.origin
 		_param_shard_rotation[3 * i + 0] = shard_transform.basis.x
 		_param_shard_rotation[3 * i + 1] = shard_transform.basis.y
@@ -86,6 +87,7 @@ func _process(delta):
 		else:
 			aabb = aabb.merge(get_shard_aabb(shard_transform))
 
+	var mat: ShaderMaterial = mesh.surface_get_material(0)
 	mat.set_shader_param("shard_location", _param_shard_location)
 	mat.set_shader_param("shard_rotation", _param_shard_rotation)
 	
