@@ -11,20 +11,47 @@ const MAX_SHARDS = 256
 var _material = preload("res://fracture_test/fracture_test_material.tres")
 
 class Shard:
-	func _init():
-		pass
+	var body := RID()
 
 var _shards := []
 var _param_shard_location := PackedVector3Array()
 var _param_shard_rotation := PackedVector3Array()
 
-func _ready():
+func _init():
 	_param_shard_location.resize(MAX_SHARDS)
 	_param_shard_rotation.resize(3 * MAX_SHARDS)
 
+
+func _enter_tree():
 #	mesh = construct_base_mesh()
 #	mesh = construct_test_mesh()
 	mesh = construct_prefrac_mesh()
+
+	for i in _shards.size():
+		init_shard(_shards[i], i)
+
+func _exit_tree():
+	pass
+
+
+func init_shard(shard: Shard, index: int):
+	# Create rigid body
+	shard.body = PhysicsServer3D.body_create()
+	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
+	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
+	var shape = PhysicsServer3D.cylinder_shape_create()
+	PhysicsServer3D.shape_set_data(shape, {"radius": 0.05, "height": 0.05})
+	PhysicsServer3D.body_add_shape(shard.body, shape)
+	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis.IDENTITY, Vector3(0, 10, 0)))
+#	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
+
+
+#func shard_moved_cb(state, index):
+#	var shard_transform = state.
+#	_param_shard_location[i] = shard_transform.origin
+#	_param_shard_rotation[3 * i + 0] = shard_transform.basis.x
+#	_param_shard_rotation[3 * i + 1] = shard_transform.basis.y
+#	_param_shard_rotation[3 * i + 2] = shard_transform.basis.z
 
 
 func get_shard_aabb(transform: Transform3D) -> AABB:
@@ -41,23 +68,17 @@ func get_shard_aabb(transform: Transform3D) -> AABB:
 	return aabb
 
 
-var _time := 0.0
 func _process(delta):
-	_time += delta
+	# TODO disable update when all shards are sleeping
 	var mat: ShaderMaterial = mesh.surface_get_material(0)
-	var rng = RandomNumberGenerator.new()
-	rng.seed = 12345
 	var aabb = null
 	for i in min(_shards.size(), MAX_SHARDS):
 		var shard = _shards[i]
-		var phase = rng.randf_range(0, 2*PI)
-		var speed = rng.randf_range(1.5, 2.5)
-		var angle = _time * speed + phase
-		var transform = Transform3D(Basis.IDENTITY, Vector3(sin(angle), cos(angle), 0.0))
-		_param_shard_location[i] = transform.origin
-		_param_shard_rotation[3 * i + 0] = transform.basis.x
-		_param_shard_rotation[3 * i + 1] = transform.basis.y
-		_param_shard_rotation[3 * i + 2] = transform.basis.z
+		var shard_transform = PhysicsServer3D.body_get_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM)
+		_param_shard_location[i] = shard_transform.origin
+		_param_shard_rotation[3 * i + 0] = shard_transform.basis.x
+		_param_shard_rotation[3 * i + 1] = shard_transform.basis.y
+		_param_shard_rotation[3 * i + 2] = shard_transform.basis.z
 		
 		if i == 0:
 			aabb = get_shard_aabb(transform)
