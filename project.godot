@@ -13,9 +13,15 @@ _global_script_classes=[{
 "class": &"BreakableSlab",
 "language": &"GDScript",
 "path": "res://fracture_test/BreakableSlab.gd"
+}, {
+"base": "MeshInstance3D",
+"class": &"ShardVisualizer",
+"language": &"GDScript",
+"path": "res://visualizers/AABBVisualizer.gd"
 }]
 _global_script_class_icons={
-"BreakableSlab": ""
+"BreakableSlab": "",
+"ShardVisualizer": ""
 }
 
 [application]

@@ -16,6 +16,7 @@ class Shard:
 var _shards := []
 var _param_shard_location := PackedVector3Array()
 var _param_shard_rotation := PackedVector3Array()
+var _custom_aabb := AABB()
 
 func _init():
 	_param_shard_location.resize(MAX_SHARDS)
@@ -81,14 +82,15 @@ func _process(delta):
 		_param_shard_rotation[3 * i + 2] = shard_transform.basis.z
 		
 		if i == 0:
-			aabb = get_shard_aabb(transform)
+			aabb = get_shard_aabb(shard_transform)
 		else:
-			aabb = aabb.merge(get_shard_aabb(transform))
+			aabb = aabb.merge(get_shard_aabb(shard_transform))
 
 	mat.set_shader_param("shard_location", _param_shard_location)
 	mat.set_shader_param("shard_rotation", _param_shard_rotation)
 	
 	if aabb:
+		_custom_aabb = aabb
 		set_custom_aabb(aabb)
 	else:
 		set_custom_aabb(AABB())
