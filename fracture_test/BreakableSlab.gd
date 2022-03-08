@@ -13,7 +13,7 @@ var _material = preload("res://fracture_test/fracture_test_material.tres")
 class Shard:
 	var body := RID()
 	# Transform of the visible mesh so it aligns with the physics body.
-	var center_of_mass_transform := Transform3D.IDENTITY
+	var center_of_mass := Vector3.ZERO
 	var aabb := AABB()
 
 var _shards := []
@@ -33,23 +33,8 @@ func _enter_tree():
 
 	_create_shards_from_mesh()
 
-	for i in _shards.size():
-		init_shard(_shards[i], i)
-
 func _exit_tree():
 	pass
-
-
-func init_shard(shard: Shard, index: int):
-	# Create rigid body
-	shard.body = PhysicsServer3D.body_create()
-	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
-	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
-	var shape = PhysicsServer3D.cylinder_shape_create()
-	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
-	PhysicsServer3D.body_add_shape(shard.body, shape)
-	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis.IDENTITY, Vector3(0, 10, 0)))
-#	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
 
 
 #func shard_moved_cb(state, index):
@@ -57,7 +42,7 @@ func init_shard(shard: Shard, index: int):
 
 
 func get_shard_mesh_transform(shard: Shard) -> Transform3D:
-	return get_shard_physics_transform(shard) * shard.center_of_mass_transform
+	return get_shard_physics_transform(shard) * Transform3D(Basis.IDENTITY, shard.center_of_mass)
 
 
 func get_shard_physics_transform(shard: Shard) -> Transform3D:
@@ -109,6 +94,22 @@ static func compwise_max(a: Vector3, b: Vector3) -> Vector3:
 	return Vector3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z))
 
 
+func _init_shard_physics(shard: Shard, index: int, shape_transform: Transform3D):
+	# Create rigid body
+	shard.body = PhysicsServer3D.body_create()
+	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
+	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
+#	var shape = PhysicsServer3D.cylinder_shape_create()
+#	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
+	var shape = PhysicsServer3D.box_shape_create()
+	PhysicsServer3D.shape_set_data(shape, Vector3.ONE)
+	PhysicsServer3D.body_add_shape(shard.body, shape)
+	PhysicsServer3D.body_set_shape_transform(shard.body, 0, shape_transform)
+#	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
+
+	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis.IDENTITY, Vector3(0, 10, 0)))
+
+
 func _create_shards_from_mesh():
 	assert(mesh)
 	var arrays = mesh.surface_get_arrays(0)
@@ -123,16 +124,21 @@ func _create_shards_from_mesh():
 			num_shards = shard_index + 1
 
 	# Compute AABBs and transforms for shard physics
-	var shard_centroids = PackedVector3Array()
+	var shard_centroids := PackedVector3Array()
 	shard_centroids.resize(num_shards)
 	shard_centroids.fill(Vector3.ZERO)
-	var shard_min = PackedVector3Array()
+	var shard_min := PackedVector3Array()
 	shard_min.resize(num_shards)
-	var shard_max = PackedVector3Array()
+	var shard_max := PackedVector3Array()
 	shard_max.resize(num_shards)
-	var shard_vertex_counts = PackedInt32Array()
+	var shard_vertex_counts := PackedInt32Array()
 	shard_vertex_counts.resize(num_shards)
 	shard_vertex_counts.fill(0)
+	# Correlation matrix used for simplified 2D PCA
+	# Contains 4 entries for each shard, representing correlation values sigma_xx, sigma_xy, sigma_yy, sigma_zz
+	var shard_correlation := PackedFloat32Array()
+	shard_correlation.resize(4 * num_shards)
+	shard_correlation.fill(0.0)
 
 	for i in vertices.size():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
@@ -141,13 +147,42 @@ func _create_shards_from_mesh():
 		shard_min[shard_index] = compwise_min(shard_min[shard_index], vertices[i]) if current_count > 0 else vertices[i]
 		shard_max[shard_index] = compwise_max(shard_max[shard_index], vertices[i]) if current_count > 0 else vertices[i]
 		shard_vertex_counts[shard_index] += 1
+		
+		# We only look at x and y components for 2D correlation and PCA
+		shard_correlation[4 * shard_index + 0] += vertices[i].x * vertices[i].x
+		shard_correlation[4 * shard_index + 1] += vertices[i].x * vertices[i].y
+		shard_correlation[4 * shard_index + 2] += vertices[i].y * vertices[i].y
+		shard_correlation[4 * shard_index + 3] += vertices[i].z * vertices[i].z
+
 	# Create shards
 	_shards.resize(num_shards)
 	for i in _shards.size():
+		# Normalize
 		shard_centroids[i] /= shard_vertex_counts[i]
+		shard_correlation[4 * i + 0] /= shard_vertex_counts[i]
+		shard_correlation[4 * i + 1] /= shard_vertex_counts[i]
+		shard_correlation[4 * i + 2] /= shard_vertex_counts[i]
+		shard_correlation[4 * i + 3] /= shard_vertex_counts[i]
+
+		# Eigenvalues of the 2D correlation matrix
+		var s_xx := shard_correlation[4 * i + 0]
+		var s_xy := shard_correlation[4 * i + 1]
+		var s_yy := shard_correlation[4 * i + 2]
+		var s_zz := shard_correlation[4 * i + 3]
+		var s_diag = sqrt((s_xx - s_yy) * (s_xx - s_yy) + 4.0 * s_xy * s_xy)
+		var lambda_pos := 0.5 * (s_xx + s_yy + s_diag)
+		var lambda_neg := 0.5 * (s_xx + s_yy - s_diag)
+		# Rotation matrix for orientating the collision box along the principal axis
+		var v0 := Vector3(s_xx + s_xy - lambda_neg, s_yy + s_xy - lambda_neg, 0.0).normalized()
+		var v1 := Vector3(s_xx + s_xy - lambda_pos, s_yy + s_xy - lambda_pos, 0.0).normalized()
+		var v2 := v0.cross(v1)
+		var basis = Basis(v0, v1, v2) * Basis(Vector3(sqrt(lambda_pos), 0, 0), Vector3(0, sqrt(lambda_neg), 0), Vector3(0, 0, sqrt(s_zz)))
+		
 		_shards[i] = Shard.new()
-		_shards[i].center_of_mass_transform = Transform3D(Basis.IDENTITY, -shard_centroids[i])
+		_shards[i].center_of_mass = -shard_centroids[i]
 		_shards[i].aabb = AABB(shard_min[i], shard_max[i] - shard_min[i])
+		
+		_init_shard_physics(_shards[i], i, Transform3D(basis, Vector3.ZERO))
 
 
 func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:

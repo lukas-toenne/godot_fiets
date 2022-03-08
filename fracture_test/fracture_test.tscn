@@ -14,4 +14,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65687, 0)
 [node name="ShardVisualizer" type="MeshInstance3D" parent="."]
 script = ExtResource( "3_kl5tn" )
 target = NodePath("../BreakableSlab")
+show_shard_aabbs = false
 show_shard_collision = true
