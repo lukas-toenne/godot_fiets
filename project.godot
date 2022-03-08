@@ -17,7 +17,7 @@ _global_script_classes=[{
 "base": "MeshInstance3D",
 "class": &"ShardVisualizer",
 "language": &"GDScript",
-"path": "res://visualizers/AABBVisualizer.gd"
+"path": "res://visualizers/ShardVisualizer.gd"
 }]
 _global_script_class_icons={
 "BreakableSlab": "",

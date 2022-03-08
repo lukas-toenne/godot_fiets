@@ -1,8 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://xdh6d43gf0at"]
+[gd_scene load_steps=4 format=3 uid="uid://dew02hpi6oev1"]
 
 [ext_resource type="PackedScene" uid="uid://cjcjlhlk4kkl1" path="res://parcour/parcour.tscn" id="1_3w1e1"]
 [ext_resource type="PackedScene" uid="uid://d2folopd8tmxg" path="res://fracture_test/BreakableSlab.tscn" id="2_3maxi"]
-[ext_resource type="Script" path="res://visualizers/AABBVisualizer.gd" id="3_kl5tn"]
+[ext_resource type="Script" path="res://visualizers/ShardVisualizer.gd" id="3_kl5tn"]
 
 [node name="Node3D" type="Node3D"]
 
@@ -14,3 +14,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65687, 0)
 [node name="ShardVisualizer" type="MeshInstance3D" parent="."]
 script = ExtResource( "3_kl5tn" )
 target = NodePath("../BreakableSlab")
+show_shard_collision = true

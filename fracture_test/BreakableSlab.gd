@@ -22,7 +22,6 @@ func _init():
 	_param_shard_location.resize(MAX_SHARDS)
 	_param_shard_rotation.resize(3 * MAX_SHARDS)
 
-
 func _enter_tree():
 #	mesh = construct_base_mesh()
 #	mesh = construct_test_mesh()
@@ -41,7 +40,7 @@ func init_shard(shard: Shard, index: int):
 	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
 	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
 	var shape = PhysicsServer3D.cylinder_shape_create()
-	PhysicsServer3D.shape_set_data(shape, {"radius": 0.05, "height": 0.05})
+	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
 	PhysicsServer3D.body_add_shape(shard.body, shape)
 	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis.IDENTITY, Vector3(0, 10, 0)))
 #	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
@@ -53,6 +52,14 @@ func init_shard(shard: Shard, index: int):
 #	_param_shard_rotation[3 * i + 0] = shard_transform.basis.x
 #	_param_shard_rotation[3 * i + 1] = shard_transform.basis.y
 #	_param_shard_rotation[3 * i + 2] = shard_transform.basis.z
+
+
+func get_shard_transform(index: int) -> Transform3D:
+	return Transform3D(Basis(
+		_param_shard_rotation[3 * index + 0],
+		_param_shard_rotation[3 * index + 1],
+		_param_shard_rotation[3 * index + 2]).transposed(),
+		_param_shard_location[index])
 
 
 func get_shard_aabb(transform: Transform3D) -> AABB:
