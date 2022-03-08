@@ -94,7 +94,7 @@ static func compwise_max(a: Vector3, b: Vector3) -> Vector3:
 	return Vector3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z))
 
 
-func _init_shard_physics(shard: Shard, index: int, shape_transform: Transform3D):
+func _init_shard_physics(shard: Shard, index: int, box_size: Vector3, initial_transform: Transform3D):
 	# Create rigid body
 	shard.body = PhysicsServer3D.body_create()
 	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
@@ -102,12 +102,12 @@ func _init_shard_physics(shard: Shard, index: int, shape_transform: Transform3D)
 #	var shape = PhysicsServer3D.cylinder_shape_create()
 #	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
 	var shape = PhysicsServer3D.box_shape_create()
-	PhysicsServer3D.shape_set_data(shape, Vector3.ONE)
+	PhysicsServer3D.shape_set_data(shape, box_size)
 	PhysicsServer3D.body_add_shape(shard.body, shape)
-	PhysicsServer3D.body_set_shape_transform(shard.body, 0, shape_transform)
-#	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
+#	PhysicsServer3D.body_set_shape_transform(shard.body, 0, shape_transform)
 
-	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis.IDENTITY, Vector3(0, 10, 0)))
+#	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
+	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, initial_transform)
 
 
 func _create_shards_from_mesh():
@@ -147,23 +147,28 @@ func _create_shards_from_mesh():
 		shard_min[shard_index] = compwise_min(shard_min[shard_index], vertices[i]) if current_count > 0 else vertices[i]
 		shard_max[shard_index] = compwise_max(shard_max[shard_index], vertices[i]) if current_count > 0 else vertices[i]
 		shard_vertex_counts[shard_index] += 1
-		
-		# We only look at x and y components for 2D correlation and PCA
-		shard_correlation[4 * shard_index + 0] += vertices[i].x * vertices[i].x
-		shard_correlation[4 * shard_index + 1] += vertices[i].x * vertices[i].y
-		shard_correlation[4 * shard_index + 2] += vertices[i].y * vertices[i].y
-		shard_correlation[4 * shard_index + 3] += vertices[i].z * vertices[i].z
-
-	# Create shards
-	_shards.resize(num_shards)
-	for i in _shards.size():
-		# Normalize
+	# Normalize centroids
+	for i in num_shards:
 		shard_centroids[i] /= shard_vertex_counts[i]
+	
+	# Only look at x and y components for 2D correlation and PCA
+	for i in vertices.size():
+		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
+		var delta = vertices[i] - shard_centroids[shard_index]
+		shard_correlation[4 * shard_index + 0] += delta.x * delta.x
+		shard_correlation[4 * shard_index + 1] += delta.x * delta.y
+		shard_correlation[4 * shard_index + 2] += delta.y * delta.y
+		shard_correlation[4 * shard_index + 3] += delta.z * delta.z
+	# Normalize correlation
+	for i in num_shards:
 		shard_correlation[4 * i + 0] /= shard_vertex_counts[i]
 		shard_correlation[4 * i + 1] /= shard_vertex_counts[i]
 		shard_correlation[4 * i + 2] /= shard_vertex_counts[i]
 		shard_correlation[4 * i + 3] /= shard_vertex_counts[i]
 
+	# Create shards
+	_shards.resize(num_shards)
+	for i in _shards.size():
 		# Eigenvalues of the 2D correlation matrix
 		var s_xx := shard_correlation[4 * i + 0]
 		var s_xy := shard_correlation[4 * i + 1]
@@ -176,13 +181,15 @@ func _create_shards_from_mesh():
 		var v0 := Vector3(s_xx + s_xy - lambda_neg, s_yy + s_xy - lambda_neg, 0.0).normalized()
 		var v1 := Vector3(s_xx + s_xy - lambda_pos, s_yy + s_xy - lambda_pos, 0.0).normalized()
 		var v2 := v0.cross(v1)
-		var basis = Basis(v0, v1, v2) * Basis(Vector3(sqrt(lambda_pos), 0, 0), Vector3(0, sqrt(lambda_neg), 0), Vector3(0, 0, sqrt(s_zz)))
+		var box_size = 2.0 * Vector3(sqrt(lambda_pos), sqrt(lambda_neg), sqrt(s_zz))
+		var basis = Basis(v0, v1, v2)
 		
+		var centroid = shard_centroids[i]
 		_shards[i] = Shard.new()
-		_shards[i].center_of_mass = -shard_centroids[i]
+		_shards[i].center_of_mass = -centroid
 		_shards[i].aabb = AABB(shard_min[i], shard_max[i] - shard_min[i])
 		
-		_init_shard_physics(_shards[i], i, Transform3D(basis, Vector3.ZERO))
+		_init_shard_physics(_shards[i], i, box_size, transform * Transform3D(basis, centroid))
 
 
 func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:

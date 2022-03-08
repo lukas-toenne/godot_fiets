@@ -47,6 +47,7 @@ skeleton = NodePath("../..")
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4645, 3.89078)
 script = ExtResource( "2_2ced2" )
+start_paused = true
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.673619, -0.588371, 0.447278, 0, 0.605183, 0.796086, -0.739079, -0.536259, 0.407663, 5.44491, 4.29117, 3.06741)

@@ -19,6 +19,7 @@ var _move_right = false
 var _move_up = false
 var _move_down = false
 var _single_step = false
+var _single_physics_step = false
 
 
 func _ready():
@@ -71,7 +72,11 @@ func _input(event):
 		if event.physical_keycode == KEY_P and event.pressed:
 			get_tree().paused = !get_tree().paused
 			_single_step = false
+			_single_physics_step = false
 		if event.physical_keycode == KEY_T and event.pressed:
+			_single_physics_step = true
+			get_tree().paused = false
+		if event.physical_keycode == KEY_R and event.pressed:
 			_single_step = true
 			get_tree().paused = false
 
@@ -98,4 +103,8 @@ func _process(delta):
 
 		movement = transform.basis * (movement * move_factor)
 		transform.origin += movement * delta
- 
+
+func _physics_process(delta):
+	if _single_physics_step:
+		_single_physics_step = false
+		get_tree().paused = true
