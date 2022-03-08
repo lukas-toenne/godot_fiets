@@ -43,25 +43,23 @@ func draw_combined_aabb(node: BreakableSlab):
 
 
 func draw_shard_aabbs(node: BreakableSlab):
-	for i in node._shards.size():
-		var shard_transform := node.get_shard_transform(i)
+	for shard in node._shards:
 		var c = Color(rand.randi())
 		c.a = 1
-		var aabb = node.get_shard_aabb(shard_transform)
-		draw_aabb(aabb, node.transform, c)
+		draw_aabb(shard.aabb, node.get_shard_mesh_transform(shard), c)
 
 
 func draw_shard_collision(node: BreakableSlab):
-	for i in node._shards.size():
-		var shard_transform := node.get_shard_transform(i)
+	for shard in node._shards:
+		var shard_transform := node.get_shard_physics_transform(shard)
 		var color = Color(rand.randi())
 		color.a = 1
-		var shape := PhysicsServer3D.body_get_shape(node._shards[i].body, 0)
-		var shape_transform := PhysicsServer3D.body_get_shape_transform(node._shards[i].body, 0)
+		var shape := PhysicsServer3D.body_get_shape(shard.body, 0)
+		var shape_transform := PhysicsServer3D.body_get_shape_transform(shard.body, 0)
 		var shape_type := PhysicsServer3D.shape_get_type(shape)
 		var shape_data = PhysicsServer3D.shape_get_data(shape)
 		
-		var world_transform = node.transform * shard_transform * shape_transform
+		var world_transform = shard_transform * shape_transform
 		if shape_type == PhysicsServer3D.SHAPE_BOX:
 			draw_box(shape_data * 0.5, world_transform, color)
 		elif shape_type == PhysicsServer3D.SHAPE_CYLINDER:
