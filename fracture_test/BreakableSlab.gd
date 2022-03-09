@@ -12,8 +12,8 @@ var _material = preload("res://fracture_test/fracture_test_material.tres")
 
 class Shard:
 	var body := RID()
-	# Transform of the visible mesh so it aligns with the physics body.
-	var center_of_mass := Vector3.ZERO
+	# Transform in local space so geometry aligns with the physics body.
+	var body_offset := Transform3D.IDENTITY
 	var aabb := AABB()
 
 var _shards := []
@@ -42,7 +42,7 @@ func _exit_tree():
 
 
 func get_shard_mesh_transform(shard: Shard) -> Transform3D:
-	return get_shard_physics_transform(shard) * Transform3D(Basis.IDENTITY, shard.center_of_mass)
+	return get_shard_physics_transform(shard) * shard.body_offset
 
 
 func get_shard_physics_transform(shard: Shard) -> Transform3D:
@@ -182,14 +182,15 @@ func _create_shards_from_mesh():
 		var v1 := Vector3(s_xx + s_xy - lambda_pos, s_yy + s_xy - lambda_pos, 0.0).normalized()
 		var v2 := v0.cross(v1)
 		var box_size = 2.0 * Vector3(sqrt(lambda_pos), sqrt(lambda_neg), sqrt(s_zz))
-		var basis = Basis(v0, v1, v2)
-		
 		var centroid = shard_centroids[i]
+		var basis = Basis(v0, v1, v2)
+		var physics_transform = Transform3D(basis, centroid)
+
 		_shards[i] = Shard.new()
-		_shards[i].center_of_mass = -centroid
+		_shards[i].body_offset = physics_transform.inverse()
 		_shards[i].aabb = AABB(shard_min[i], shard_max[i] - shard_min[i])
 		
-		_init_shard_physics(_shards[i], i, box_size, transform * Transform3D(basis, centroid))
+		_init_shard_physics(_shards[i], i, box_size, transform * physics_transform)
 
 
 func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:
