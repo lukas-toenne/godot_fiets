@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3 uid="uid://bfq55dx5ym2rc"]
+
+[ext_resource type="Script" path="res://player_camera/player_camera.gd" id="1_sweu0"]
+
+[sub_resource type="HeightMapShape3D" id="HeightMapShape3D_ki2k8"]
+map_width = 10
+map_depth = 10
+map_data = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="BoxMesh" id="BoxMesh_57a4u"]
+size = Vector3(10, 1, 10)
+subdivide_width = 10
+subdivide_depth = 10
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_24ujy"]
+points = PackedVector3Array(4.78818, 0.5, 4.78724, -5.07837, -0.579365, -5.07738, -5.07837, -0.579365, 5.07738, 5.07837, -0.579365, -5.07738, -4.78818, 0.5, -4.78724, 5.07837, -0.579365, 5.07738, -4.78818, 0.5, 4.78724, 4.78818, 0.5, -4.78724)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dtg33"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_svtac"]
+
+[node name="Node3D" type="Node3D"]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource( "HeightMapShape3D_ki2k8" )
+
+[node name="RigidDynamicBody3D" type="RigidDynamicBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.08557, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidDynamicBody3D"]
+mesh = SubResource( "BoxMesh_57a4u" )
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidDynamicBody3D"]
+shape = SubResource( "ConvexPolygonShape3D_24ujy" )
+
+[node name="RigidDynamicBody3D2" type="RigidDynamicBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.52298, 2.521, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidDynamicBody3D2"]
+shape = SubResource( "BoxShape3D_dtg33" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidDynamicBody3D2"]
+mesh = SubResource( "BoxMesh_svtac" )
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.99139, 6.3568)
+script = ExtResource( "1_sweu0" )
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.452263, 0.891884, 0, -0.891884, 0.452263, 0, 5.77089, 0)

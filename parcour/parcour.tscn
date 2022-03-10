@@ -1,7 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://cjcjlhlk4kkl1"]
+[gd_scene load_steps=5 format=3 uid="uid://cjcjlhlk4kkl1"]
 
 [ext_resource type="Texture2D" uid="uid://c43jdvyuqdfrs" path="res://checker1.png" id="1_mob01"]
-[ext_resource type="Script" path="res://player_camera/player_camera.gd" id="2_2ced2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_rim75"]
 
@@ -43,11 +42,6 @@ shape = SubResource( "BoxShape3D_rim75" )
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D3"]
 mesh = SubResource( "BoxMesh_hle5b" )
 skeleton = NodePath("../..")
-
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4645, 3.89078)
-script = ExtResource( "2_2ced2" )
-start_paused = true
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.673619, -0.588371, 0.447278, 0, 0.605183, 0.796086, -0.739079, -0.536259, 0.407663, 5.44491, 4.29117, 3.06741)

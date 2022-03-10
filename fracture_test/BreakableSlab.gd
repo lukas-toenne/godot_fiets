@@ -5,6 +5,15 @@ class_name BreakableSlab
 @export var Height := 1.0
 @export var Depth := 0.01
 
+# Limit for colliders, particles will be used if limit is reached.
+@export var MaxColliders := 40
+# Limit for convex colliders, more box colliders may be created if limit is reached.
+@export var MaxConvexColliders := 10
+# Minimum size of colliders, use particles below this shard size.
+@export var ParticleSizeThreshold := 0.08
+# Minimum size of convex colliders, use box colliders below this size.
+@export var BoxColliderSizeThreshold := 0.2
+
 const MeshOps = preload("res://fracture_test/MeshOps.gd")
 const MAX_SHARDS = 256
 
@@ -15,6 +24,8 @@ class Shard:
 	# Transform in local space so geometry aligns with the physics body.
 	var body_offset := Transform3D.IDENTITY
 	var aabb := AABB()
+	var principal_components := Vector3.ONE
+	var shape_type := PhysicsServer3D.SHAPE_CUSTOM
 
 var _shards := []
 # Uniform buffers for displacement in the shader
@@ -58,7 +69,7 @@ func get_shard_transformed_aabb(shard: Shard) -> AABB:
 	return get_shard_mesh_transform(shard) * shard.aabb
 
 
-func _process(delta):
+func _physics_process(delta):
 	# TODO disable update when all shards are sleeping
 	var inv_transform = transform.inverse()
 	var aabb = null
@@ -94,20 +105,17 @@ static func compwise_max(a: Vector3, b: Vector3) -> Vector3:
 	return Vector3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z))
 
 
-func _init_shard_physics(shard: Shard, index: int, box_size: Vector3, initial_transform: Transform3D):
+func _init_shard_physics(shard: Shard, index: int, shape: RID):
 	# Create rigid body
 	shard.body = PhysicsServer3D.body_create()
 	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
 	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
 #	var shape = PhysicsServer3D.cylinder_shape_create()
 #	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
-	var shape = PhysicsServer3D.box_shape_create()
-	PhysicsServer3D.shape_set_data(shape, box_size)
 	PhysicsServer3D.body_add_shape(shard.body, shape)
-#	PhysicsServer3D.body_set_shape_transform(shard.body, 0, shape_transform)
 
 #	PhysicsServer3D.body_set_force_integration_callback(shard.body, Callable(self, "shard_moved_cb"), index)
-	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, initial_transform)
+	PhysicsServer3D.body_set_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM, transform * shard.body_offset.inverse())
 
 
 func _create_shards_from_mesh():
@@ -124,6 +132,9 @@ func _create_shards_from_mesh():
 			num_shards = shard_index + 1
 
 	# Compute AABBs and transforms for shard physics
+	var shard_vertex_counts := PackedInt32Array()
+	shard_vertex_counts.resize(num_shards)
+	shard_vertex_counts.fill(0)
 	var shard_centroids := PackedVector3Array()
 	shard_centroids.resize(num_shards)
 	shard_centroids.fill(Vector3.ZERO)
@@ -131,27 +142,24 @@ func _create_shards_from_mesh():
 	shard_min.resize(num_shards)
 	var shard_max := PackedVector3Array()
 	shard_max.resize(num_shards)
-	var shard_vertex_counts := PackedInt32Array()
-	shard_vertex_counts.resize(num_shards)
-	shard_vertex_counts.fill(0)
-	# Correlation matrix used for simplified 2D PCA
-	# Contains 4 entries for each shard, representing correlation values sigma_xx, sigma_xy, sigma_yy, sigma_zz
-	var shard_correlation := PackedFloat32Array()
-	shard_correlation.resize(4 * num_shards)
-	shard_correlation.fill(0.0)
-
 	for i in vertices.size():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
 		var current_count := shard_vertex_counts[shard_index]
+		shard_vertex_counts[shard_index] += 1
 		shard_centroids[shard_index] += vertices[i]
 		shard_min[shard_index] = compwise_min(shard_min[shard_index], vertices[i]) if current_count > 0 else vertices[i]
 		shard_max[shard_index] = compwise_max(shard_max[shard_index], vertices[i]) if current_count > 0 else vertices[i]
-		shard_vertex_counts[shard_index] += 1
 	# Normalize centroids
 	for i in num_shards:
 		shard_centroids[i] /= shard_vertex_counts[i]
 	
-	# Only look at x and y components for 2D correlation and PCA
+	# Correlation matrix used for simplified 2D PCA
+	# Contains 4 entries for each shard, representing correlation values sigma_xx, sigma_xy, sigma_yy, sigma_zz
+	# We only look at x and y components for 2D correlation and PCA for simplicity,
+	# assuming that the shard will be mostly flat in the Z plane.
+	var shard_correlation := PackedFloat32Array()
+	shard_correlation.resize(4 * num_shards)
+	shard_correlation.fill(0.0)
 	for i in vertices.size():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
 		var delta = vertices[i] - shard_centroids[shard_index]
@@ -169,7 +177,7 @@ func _create_shards_from_mesh():
 	# Create shards
 	_shards.resize(num_shards)
 	for i in _shards.size():
-		# Eigenvalues of the 2D correlation matrix
+		# Eigenvalues of the 2D correlation matrix are a quadratic equation.
 		var s_xx := shard_correlation[4 * i + 0]
 		var s_xy := shard_correlation[4 * i + 1]
 		var s_yy := shard_correlation[4 * i + 2]
@@ -180,17 +188,66 @@ func _create_shards_from_mesh():
 		# Rotation matrix for orientating the collision box along the principal axis
 		var v0 := Vector3(s_xx + s_xy - lambda_neg, s_yy + s_xy - lambda_neg, 0.0).normalized()
 		var v1 := Vector3(s_xx + s_xy - lambda_pos, s_yy + s_xy - lambda_pos, 0.0).normalized()
-		var v2 := v0.cross(v1)
-		var box_size = 2.0 * Vector3(sqrt(lambda_pos), sqrt(lambda_neg), sqrt(s_zz))
-		var centroid = shard_centroids[i]
-		var basis = Basis(v0, v1, v2)
-		var physics_transform = Transform3D(basis, centroid)
+		var v2 := v0.cross(v1) # This is just Z
 
 		_shards[i] = Shard.new()
-		_shards[i].body_offset = physics_transform.inverse()
+		_shards[i].body_offset = Transform3D(Basis(v0, v1, v2), shard_centroids[i]).inverse()
 		_shards[i].aabb = AABB(shard_min[i], shard_max[i] - shard_min[i])
-		
-		_init_shard_physics(_shards[i], i, box_size, transform * physics_transform)
+		_shards[i].principal_components = 2.0 * Vector3(sqrt(lambda_pos), sqrt(lambda_neg), sqrt(s_zz))
+
+	# Index array to sort shards by size in descending order (largest shards first).
+	# Has to be a regular Array, PackedInt32Array cannot be sorted by custom key.
+	var sorted_index = Array()
+	sorted_index.resize(num_shards)
+	for i in num_shards:
+		sorted_index[i] = i
+	var compare_size := func compare_size_fn(a, b):
+		return _shards[a].principal_components[0] > _shards[b].principal_components[0]
+	sorted_index.sort_custom(compare_size)
+	# Assign shape types based on size and budget.
+	var current = 0
+	while current < min(MaxConvexColliders, MaxColliders, num_shards):
+		var shard = _shards[sorted_index[current]]
+		if shard.principal_components[0] <= BoxColliderSizeThreshold:
+			break
+		shard.shape_type = PhysicsServer3D.SHAPE_CONVEX_POLYGON
+		current += 1
+	var num_convex = current
+	while current < min(MaxColliders, num_shards):
+		var shard = _shards[sorted_index[current]]
+		if shard.principal_components[0] <= ParticleSizeThreshold:
+			break
+		shard.shape_type = PhysicsServer3D.SHAPE_BOX
+		current += 1
+	var num_box = current - num_convex
+	while current < num_shards:
+		var shard = _shards[sorted_index[current]]
+		shard.shape_type = PhysicsServer3D.SHAPE_CUSTOM
+		current += 1
+	var num_particle = current - num_box
+
+	# Stores arrays of vertices for shards with convex hull shapes,
+	# these are needed in separate lists for shape creation.
+	var convex_hull_verts := Array()
+	convex_hull_verts.resize(vertices.size())
+	for i in vertices.size():
+		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
+		var shard : Shard = _shards[shard_index]
+		if shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
+			if not convex_hull_verts[i]:
+				convex_hull_verts[i] = PackedVector3Array()
+				
+
+	for i in _shards.size():
+		var shard = _shards[i]
+		var shape := RID()
+		if shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
+			shape = PhysicsServer3D.convex_polygon_shape_create()
+			PhysicsServer3D.shape_set_data(shape, vertices)
+		elif shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
+			shape = PhysicsServer3D.box_shape_create()
+			PhysicsServer3D.shape_set_data(shape, shard.principal_components)
+		_init_shard_physics(shard, i, shape)
 
 
 func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:
