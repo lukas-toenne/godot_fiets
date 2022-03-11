@@ -12,6 +12,7 @@ const BreakableSlab = preload("res://fracture_test/BreakableSlab.gd")
 var mesh_impl: ImmediateMesh
 var target_node: BreakableSlab
 var rand = RandomNumberGenerator.new()
+var draw_data := Array()
 
 func _ready() -> void:
 	mesh_impl = ImmediateMesh.new()
@@ -34,6 +35,10 @@ func _process(_delta):
 			draw_shard_aabbs(target_node)
 		if show_shard_collision:
 			draw_shard_collision(target_node)
+		else:
+			draw_data.clear()
+	else:
+		draw_data.clear()
 
 
 func draw_combined_aabb(node: BreakableSlab):
@@ -50,7 +55,13 @@ func draw_shard_aabbs(node: BreakableSlab):
 
 
 func draw_shard_collision(node: BreakableSlab):
-	for shard in node._shards:
+	draw_data.resize(node._shards.size())
+	for i in node._shards.size():
+		var shard = node._shards[i]
+		if not shard.body.is_valid():
+			draw_data[i] = null
+			continue
+		
 		var shard_transform := node.get_shard_physics_transform(shard)
 		var color = Color(rand.randi())
 		color.a = 1
@@ -61,9 +72,14 @@ func draw_shard_collision(node: BreakableSlab):
 		
 		var world_transform = shard_transform * shape_transform
 		if shape_type == PhysicsServer3D.SHAPE_BOX:
+			draw_data[i] = null
 			draw_box(shape_data * 0.5, world_transform, color)
 		elif shape_type == PhysicsServer3D.SHAPE_CYLINDER:
+			draw_data[i] = null
 			draw_cylinder(shape_data["radius"], shape_data["height"], world_transform, color)
+		elif shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
+			if not (draw_data[i] is Mesh):
+				draw_data[i] = ArrayMesh()
 		else:
 			# TODO
 			pass

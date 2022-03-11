@@ -57,7 +57,11 @@ func get_shard_mesh_transform(shard: Shard) -> Transform3D:
 
 
 func get_shard_physics_transform(shard: Shard) -> Transform3D:
-	return PhysicsServer3D.body_get_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM)
+	if shard.body.is_valid():
+		return PhysicsServer3D.body_get_state(shard.body, PhysicsServer3D.BODY_STATE_TRANSFORM)
+	else:
+		# TODO talk to particle sim
+		return Transform3D.IDENTITY
 
 
 # Get shard AABB in node space.
@@ -229,25 +233,30 @@ func _create_shards_from_mesh():
 	# Stores arrays of vertices for shards with convex hull shapes,
 	# these are needed in separate lists for shape creation.
 	var convex_hull_verts := Array()
-	convex_hull_verts.resize(vertices.size())
+	convex_hull_verts.resize(num_shards)
+	for i in num_shards:
+		convex_hull_verts[i] = PackedVector3Array()
+		convex_hull_verts[i].resize(shard_vertex_counts[i])
+	var convex_hull_count := PackedInt32Array()
+	convex_hull_count.resize(num_shards)
+	convex_hull_count.fill(0)
 	for i in vertices.size():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
 		var shard : Shard = _shards[shard_index]
 		if shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
-			if not convex_hull_verts[i]:
-				convex_hull_verts[i] = PackedVector3Array()
-				
+			convex_hull_verts[shard_index][convex_hull_count[shard_index]] = vertices[i]
+			convex_hull_count[shard_index] += 1
 
 	for i in _shards.size():
 		var shard = _shards[i]
-		var shape := RID()
 		if shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
-			shape = PhysicsServer3D.convex_polygon_shape_create()
-			PhysicsServer3D.shape_set_data(shape, vertices)
+			var shape = PhysicsServer3D.convex_polygon_shape_create()
+			PhysicsServer3D.shape_set_data(shape, convex_hull_verts[i])
+			_init_shard_physics(shard, i, shape)
 		elif shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
-			shape = PhysicsServer3D.box_shape_create()
+			var shape = PhysicsServer3D.box_shape_create()
 			PhysicsServer3D.shape_set_data(shape, shard.principal_components)
-		_init_shard_physics(shard, i, shape)
+			_init_shard_physics(shard, i, shape)
 
 
 func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:
