@@ -78,11 +78,45 @@ func draw_shard_collision(node: BreakableSlab):
 			draw_data[i] = null
 			draw_cylinder(shape_data["radius"], shape_data["height"], world_transform, color)
 		elif shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
-			if not (draw_data[i] is Mesh):
-				draw_data[i] = ArrayMesh()
+			if not draw_data[i]:
+				var poly_shape = ConvexPolygonShape3D.new()
+				poly_shape.points = shape_data
+				var dmesh = poly_shape.get_debug_mesh()
+				draw_data[i] = dmesh
+#				var tmesh = dmesh.generate_triangle_mesh()
+#				draw_data[i] = tmesh
+			draw_mesh(draw_data[i], world_transform, color)
 		else:
 			# TODO
 			pass
+
+
+func draw_mesh(mesh: Mesh, shape_transform: Transform3D, color:Color) -> void:
+	mesh_impl.surface_begin(Mesh.PRIMITIVE_LINES)
+	mesh_impl.surface_set_color(color)
+	mesh_impl.surface_set_normal(Vector3(1, 0, 0))
+
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	if arrays[Mesh.ARRAY_INDEX]:
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i in indices.size() / 3:
+			var idx0 = indices[3 * i + 0]
+			var idx1 = indices[3 * i + 1]
+			var idx2 = indices[3 * i + 2]
+			draw_line(vertices[idx0], vertices[idx1], shape_transform)
+			draw_line(vertices[idx1], vertices[idx2], shape_transform)
+			draw_line(vertices[idx2], vertices[idx0], shape_transform)
+	else:
+		for i in vertices.size() / 3:
+			var v0 = vertices[3 * i + 0]
+			var v1 = vertices[3 * i + 1]
+			var v2 = vertices[3 * i + 2]
+			draw_line(v0, v1, shape_transform)
+			draw_line(v1, v2, shape_transform)
+			draw_line(v2, v0, shape_transform)
+	
+	mesh_impl.surface_end()
 
 
 func draw_aabb(aabb: AABB, aabb_transform: Transform3D, color: Color):

@@ -244,7 +244,7 @@ func _create_shards_from_mesh():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
 		var shard : Shard = _shards[shard_index]
 		if shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
-			convex_hull_verts[shard_index][convex_hull_count[shard_index]] = vertices[i]
+			convex_hull_verts[shard_index][convex_hull_count[shard_index]] = shard.body_offset * vertices[i]
 			convex_hull_count[shard_index] += 1
 
 	for i in _shards.size():
@@ -253,7 +253,7 @@ func _create_shards_from_mesh():
 			var shape = PhysicsServer3D.convex_polygon_shape_create()
 			PhysicsServer3D.shape_set_data(shape, convex_hull_verts[i])
 			_init_shard_physics(shard, i, shape)
-		elif shard.shape_type == PhysicsServer3D.SHAPE_CONVEX_POLYGON:
+		elif shard.shape_type == PhysicsServer3D.SHAPE_BOX:
 			var shape = PhysicsServer3D.box_shape_create()
 			PhysicsServer3D.shape_set_data(shape, shard.principal_components)
 			_init_shard_physics(shard, i, shape)
