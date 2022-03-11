@@ -14,6 +14,9 @@ class_name BreakableSlab
 # Minimum size of convex colliders, use box colliders below this size.
 @export var BoxColliderSizeThreshold := 0.2
 
+@export_flags_3d_physics var collision_layer := 1
+@export_flags_3d_physics var collision_mask := 1
+
 const MeshOps = preload("res://fracture_test/MeshOps.gd")
 const MAX_SHARDS = 256
 
@@ -27,6 +30,7 @@ class Shard:
 	var principal_components := Vector3.ONE
 	var shape_type := PhysicsServer3D.SHAPE_CUSTOM
 
+var _area := RID()
 var _shards := []
 # Uniform buffers for displacement in the shader
 var _shader_shard_location := PackedVector3Array()
@@ -43,6 +47,9 @@ func _enter_tree():
 	mesh = construct_prefrac_mesh()
 
 	_create_shards_from_mesh()
+	
+	_init_physics()
+
 
 func _exit_tree():
 	pass
@@ -109,10 +116,34 @@ static func compwise_max(a: Vector3, b: Vector3) -> Vector3:
 	return Vector3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z))
 
 
+# body_action: AREA_BODY_ADDED or AREA_BODY_REMOVED, depending on whether the object entered or exited the area.
+# object_id: RID of the object that entered/exited the area.
+# instance_id: Instance ID of the object that entered/exited the area.
+# shape_index: The shape index of the object that entered/exited the area.
+# area_shape_index: The shape index of the area where the object entered/exited.
+func _area_monitor_cb(body_action, object_id : RID, instance_id : int, shape_index : int, area_shape_index : int):
+	print("HIT!")
+
+func _init_physics():
+	_area = PhysicsServer3D.area_create()
+	PhysicsServer3D.area_attach_object_instance_id(_area, get_instance_id())
+	PhysicsServer3D.area_set_space(_area, get_world_3d().space)
+	PhysicsServer3D.area_set_collision_layer(_area, collision_layer)
+	PhysicsServer3D.area_set_collision_mask(_area, collision_mask)
+	PhysicsServer3D.area_set_area_monitor_callback(_area, _area_monitor_cb)
+	PhysicsServer3D.area_set_monitorable(_area, true)
+	var shape := PhysicsServer3D.box_shape_create()
+	PhysicsServer3D.shape_set_data(shape, Vector3(Width, Height, Depth))
+	PhysicsServer3D.area_add_shape(_area, shape, Transform3D.IDENTITY)
+	PhysicsServer3D.area_set_transform(_area, transform)
+
 func _init_shard_physics(shard: Shard, index: int, shape: RID):
 	# Create rigid body
 	shard.body = PhysicsServer3D.body_create()
+	PhysicsServer3D.body_attach_object_instance_id(shard.body, get_instance_id())
 	PhysicsServer3D.body_set_space(shard.body, get_world_3d().space)
+	PhysicsServer3D.body_set_collision_layer(shard.body, collision_layer)
+	PhysicsServer3D.body_set_collision_mask(shard.body, collision_mask)
 	PhysicsServer3D.body_set_mode(shard.body, PhysicsServer3D.BODY_MODE_DYNAMIC)
 #	var shape = PhysicsServer3D.cylinder_shape_create()
 #	PhysicsServer3D.shape_set_data(shape, {"radius": 0.03, "height": 0.1})
