@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bvtsvdi3b8ush"]
+
+[ext_resource type="Shader" path="res://fracture_test/shard_static.gdshader" id="1_u5onk"]
+
+[resource]
+render_priority = 0
+shader = ExtResource( "1_u5onk" )
+shader_param/shard_location = null
+shader_param/shard_rotation = null

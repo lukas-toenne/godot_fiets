@@ -9,6 +9,11 @@
 config_version=5
 
 _global_script_classes=[{
+"base": "ArrayMesh",
+"class": &"BreakableMesh",
+"language": &"GDScript",
+"path": "res://fracture_test/BreakableMesh.gd"
+}, {
 "base": "MeshInstance3D",
 "class": &"BreakableSlab",
 "language": &"GDScript",
@@ -20,6 +25,7 @@ _global_script_classes=[{
 "path": "res://visualizers/ShardVisualizer.gd"
 }]
 _global_script_class_icons={
+"BreakableMesh": "",
 "BreakableSlab": "",
 "ShardVisualizer": ""
 }

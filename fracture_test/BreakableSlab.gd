@@ -20,7 +20,10 @@ class_name BreakableSlab
 const MeshOps = preload("res://fracture_test/MeshOps.gd")
 const MAX_SHARDS = 256
 
-var _material = preload("res://fracture_test/fracture_test_material.tres")
+var _static_surface := -1
+var _static_material = preload("res://fracture_test/shard_static_material.tres")
+var _shard_surface := -1
+var _shard_material = preload("res://fracture_test/shard_displace_material.tres")
 
 class Shard:
 	var body := RID()
@@ -30,7 +33,6 @@ class Shard:
 	var principal_components := Vector3.ONE
 	var shape_type := PhysicsServer3D.SHAPE_CUSTOM
 
-var _area := RID()
 var _shards := []
 # Uniform buffers for displacement in the shader
 var _shader_shard_location := PackedVector3Array()
@@ -40,12 +42,13 @@ var _custom_aabb := AABB()
 func _init():
 	_shader_shard_location.resize(MAX_SHARDS)
 	_shader_shard_rotation.resize(3 * MAX_SHARDS)
+	mesh = ArrayMesh.new()
+
 
 func _enter_tree():
-#	mesh = construct_base_mesh()
-#	mesh = construct_test_mesh()
-	mesh = construct_prefrac_mesh()
-
+#	_static_surface = construct_base_surface()
+#	_shard_surface = construct_test_surface()
+	_shard_surface = construct_prefrac_surface()
 	_create_shards_from_mesh()
 	
 	_init_physics()
@@ -124,18 +127,27 @@ static func compwise_max(a: Vector3, b: Vector3) -> Vector3:
 func _area_monitor_cb(body_action, object_id : RID, instance_id : int, shape_index : int, area_shape_index : int):
 	print("HIT!")
 
+
+func _on_body_entered(body : Node3D):
+	print("Body entered: ", body)
+
+
 func _init_physics():
-	_area = PhysicsServer3D.area_create()
-	PhysicsServer3D.area_attach_object_instance_id(_area, get_instance_id())
-	PhysicsServer3D.area_set_space(_area, get_world_3d().space)
-	PhysicsServer3D.area_set_collision_layer(_area, collision_layer)
-	PhysicsServer3D.area_set_collision_mask(_area, collision_mask)
-	PhysicsServer3D.area_set_area_monitor_callback(_area, _area_monitor_cb)
-	PhysicsServer3D.area_set_monitorable(_area, true)
-	var shape := PhysicsServer3D.box_shape_create()
-	PhysicsServer3D.shape_set_data(shape, Vector3(Width, Height, Depth))
-	PhysicsServer3D.area_add_shape(_area, shape, Transform3D.IDENTITY)
-	PhysicsServer3D.area_set_transform(_area, transform)
+#	_area = PhysicsServer3D.area_create()
+#	PhysicsServer3D.area_attach_object_instance_id(_area, get_instance_id())
+#	PhysicsServer3D.area_set_space(_area, get_world_3d().space)
+#	PhysicsServer3D.area_set_collision_layer(_area, collision_layer)
+#	PhysicsServer3D.area_set_collision_mask(_area, collision_mask)
+#	PhysicsServer3D.area_set_area_monitor_callback(_area, _area_monitor_cb)
+#	PhysicsServer3D.area_set_monitorable(_area, true)
+#	var shape := PhysicsServer3D.box_shape_create()
+#	PhysicsServer3D.shape_set_data(shape, Vector3(Width * 2, Height * 2, Depth * 10))
+#	PhysicsServer3D.area_add_shape(_area, shape, Transform3D.IDENTITY)
+#	PhysicsServer3D.area_set_transform(_area, transform)
+
+	$Area3D/CollisionShape3D.shape.size = Vector3(Width, Height, Depth)
+	$Area3D.connect("body_entered", _on_body_entered)
+
 
 func _init_shard_physics(shard: Shard, index: int, shape: RID):
 	# Create rigid body
@@ -154,8 +166,10 @@ func _init_shard_physics(shard: Shard, index: int, shape: RID):
 
 
 func _create_shards_from_mesh():
-	assert(mesh)
-	var arrays = mesh.surface_get_arrays(0)
+	if _shard_surface < 0:
+		return
+
+	var arrays = mesh.surface_get_arrays(_shard_surface)
 	var vertices = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
 	var custom0 = arrays[Mesh.ARRAY_CUSTOM0] as PackedByteArray
 
@@ -165,6 +179,9 @@ func _create_shards_from_mesh():
 		var shard_index := custom0[4 * i + 0] + (custom0[4 * i + 1] << 8) + (custom0[4 * i + 2] << 16) + (custom0[4 * i + 3] << 24)
 		if shard_index + 1 > num_shards:
 			num_shards = shard_index + 1
+	if num_shards == 0:
+		_shards.clear()
+		return
 
 	# Compute AABBs and transforms for shard physics
 	var shard_vertex_counts := PackedInt32Array()
@@ -290,9 +307,10 @@ func _create_shards_from_mesh():
 			_init_shard_physics(shard, i, shape)
 
 
-func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:
+func _create_surface_from_arrays(arrays: Array, material: Material) -> int:
 	var vertices = arrays[Mesh.ARRAY_VERTEX]
 	var indices = arrays[Mesh.ARRAY_INDEX]
+	
 	var islands := PackedInt32Array()
 	islands.resize(vertices.size())
 	MeshOps.find_islands(indices, islands)
@@ -311,14 +329,15 @@ func _create_mesh_from_arrays(arrays: Array) -> ArrayMesh:
 	var boundary := MeshOps.find_boundary(arrays[Mesh.ARRAY_INDEX])
 	MeshOps.extrude_mesh(arrays, boundary, Depth)
 
-	var arr_mesh := ArrayMesh.new()
+	var arr_mesh := mesh as ArrayMesh
+	var surface_index := arr_mesh.get_surface_count()
 	arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	arr_mesh.surface_set_material(0, _material)
+	arr_mesh.surface_set_material(surface_index, _static_material)
 
-	return arr_mesh
+	return surface_index
 
 
-func construct_base_mesh():
+func construct_base_surface() -> int:
 	var vertices := PackedVector3Array()
 	vertices.push_back(Vector3(Width/2, Height/2, 0))
 	vertices.push_back(Vector3(Width/2, -Height/2, 0))
@@ -345,10 +364,10 @@ func construct_base_mesh():
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = tex_uv
 	arrays[Mesh.ARRAY_INDEX] = indices
-	return _create_mesh_from_arrays(arrays)
+	return _create_surface_from_arrays(arrays, _static_material)
 
 
-func construct_test_mesh():
+func construct_test_surface() -> int:
 	var vertices := PackedVector3Array()
 	vertices.push_back(Vector3(Width/2, Height/2, 0))
 	vertices.push_back(Vector3(Width/2, -Height/2, 0))
@@ -379,10 +398,10 @@ func construct_test_mesh():
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = tex_uv
 	arrays[Mesh.ARRAY_INDEX] = indices
-	return _create_mesh_from_arrays(arrays)
+	return _create_surface_from_arrays(arrays, _shard_material)
 
 
-func construct_prefrac_mesh():
+func construct_prefrac_surface() -> int:
 	var in_arrays = $prefractured/Plane.mesh.surface_get_arrays(0)
 
 	var arrays := []
@@ -392,4 +411,4 @@ func construct_prefrac_mesh():
 	arrays[Mesh.ARRAY_TANGENT] = in_arrays[Mesh.ARRAY_TANGENT]
 	arrays[Mesh.ARRAY_TEX_UV] = in_arrays[Mesh.ARRAY_TEX_UV]
 	arrays[Mesh.ARRAY_INDEX] = in_arrays[Mesh.ARRAY_INDEX]
-	return _create_mesh_from_arrays(arrays)
+	return _create_surface_from_arrays(arrays, _shard_material)
